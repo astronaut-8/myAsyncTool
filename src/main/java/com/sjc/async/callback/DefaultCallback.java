@@ -14,7 +14,7 @@ public class DefaultCallback <T ,V> implements ICallback<T , V> {
     }
 
     @Override
-    public void result(boolean success, T param, WorkResult<T> workResult) {
+    public void result(boolean success, T param, WorkResult<V> workResult) {
 
     }
 }

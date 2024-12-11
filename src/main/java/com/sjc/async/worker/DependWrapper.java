@@ -33,6 +33,7 @@ public class DependWrapper {
         this.dependWrapper = dependWrapper;
     }
 
+
     public boolean isMust() {
         return must;
     }
