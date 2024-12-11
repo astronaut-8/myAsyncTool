@@ -12,7 +12,9 @@ import com.sjc.async.callback.IWorker;
 import com.sjc.async.worker.DependWrapper;
 import com.sjc.async.worker.WorkResult;
 
+import java.awt.*;
 import java.util.List;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -58,10 +60,14 @@ public class WorkerWrapper<T, V> {
         this.worker = worker;
         this.param = param;
         if (callback == null) {
-            callback = new DefaultCallback<>();
+            callback = new DefaultCallback<>(); // 默认的回调方法
         }
         this.callback = callback;
     }
 
+    // 整体的工作流程
+    private void work(ThreadPoolExecutor poolExecutor , WorkerWrapper fromWrapper , long remainTime) {
 
+
+    }
 }
