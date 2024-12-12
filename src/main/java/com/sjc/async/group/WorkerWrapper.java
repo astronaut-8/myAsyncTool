@@ -78,6 +78,7 @@ public class WorkerWrapper<T, V> {
 
         // 总时间已经超时了，快速失败，进行下一个
         if (remainTime <= 0) {
+            System.err.println("remainTime is empty stop work -- threadName --- " + Thread.currentThread().getName());
             fastFail(INIT, null);
             beginNext(poolExecutor, now, remainTime);
             return;
@@ -116,6 +117,7 @@ public class WorkerWrapper<T, V> {
      */
     public void stopNow() {
         if (getState() == INIT || getState() == WORKING) {
+            System.err.println("threadName - " + Thread.currentThread().getName() + " stop for executor timeout");
             fastFail(getState() , null);
         }
     }
@@ -149,6 +151,7 @@ public class WorkerWrapper<T, V> {
 
 
     private void doDependsOneJob(ThreadPoolExecutor poolExecutor, WorkerWrapper dependWrapper, long remainTime) {
+
         if (ResultState.TIMEOUT == dependWrapper.getWorkResult().getResultState()) {
             workResult = defaultResult();
             fastFail(INIT , null);
@@ -273,6 +276,7 @@ public class WorkerWrapper<T, V> {
             if (workResult != null) {
                 return workResult;
             }
+            System.err.println("执行自己的job失败喽");
             fastFail(WORKING , e);
             return workResult;
         }
@@ -282,7 +286,7 @@ public class WorkerWrapper<T, V> {
      * 快速失败
      */
     private boolean fastFail(int expect , Exception e) {
-        System.out.println("fastFail: " + Thread.currentThread().getName() + " time " + System.currentTimeMillis());
+        System.err.println("fastFail: " + Thread.currentThread().getName() + " time " + System.currentTimeMillis());
 
         // 试图从except状态 改为 Error
         if (!compareAndSetState(expect , ERROR)) {
