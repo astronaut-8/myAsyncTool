@@ -338,6 +338,16 @@ public class WorkerWrapper<T, V> {
         }
         dependWrappers.add(new DependWrapper(workerWrapper , must));
     }
+
+    /**
+     *  直接set next
+     */
+    public WorkerWrapper setNext ( WorkerWrapper<?,?>... nextWrappers) {
+        if (nextWrappers != null) {
+            this.nextWrappers.clear();
+        }
+        return addNext(nextWrappers);
+    }
     // 设置几个依赖的wrapper 不是 must 执行完毕才能执行自己
     public void setDependNotMust(WorkerWrapper<? ,?> ... workerWrappers) {
         if (dependWrappers == null) {
