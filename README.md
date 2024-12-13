@@ -177,3 +177,34 @@ father wrapper 和 next wrapper 之间 数据传递的原理(next wrapper 的 �
 拿到引用意味着 可以 提前把引用注入到 nextWrapper的入参中 而不用等到 一个 Wrapper执行完毕后才能获取result 再开启新的wrapper逻辑 (同步调用)
 
 这个思想逻辑 其实很简单 也比较类似于 Spring 框架中对于 循环依赖的解决思路(不考虑proxy的时候) 
+
+
+
+
+
+
+
+最后设置一个异步的执行
+
+原来的版本中 调用Async.beginWork 这个操作是同步的 增加一个 beginWorkAsync 异步得去开始这个任务组
+
+并且设置GroupCallback 群组的统一 对结果进行处理
+
+```java
+/**
+ *  如果是异步执行整组的话，可以用这个组回调 (不推荐使用)
+ */
+public interface IGroupCallback {
+    // 成功和失败都可以从wrapper里去getWrapper
+
+    void success (List<WorkerWrapper> workerWrappers);
+
+    void failure (List<WorkerWrapper> workerWrappers , Exception e);
+}
+```
+
+思路清晰 实现简单
+
+
+
+别的小东西 不是很重要 源码的V1.0 就结束了

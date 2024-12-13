@@ -52,7 +52,7 @@ public class Async {
     }
 
     /**
-     *  异步执行，知道所有的都完成，或者失败后，发起回调
+     *  异步执行，直到所有的都完成，或者失败后，发起回调
      */
     public static void beginWorkAsync (long timeout , IGroupCallback groupCallback , WorkerWrapper... workerWrapper) {
         if (groupCallback == null) {
