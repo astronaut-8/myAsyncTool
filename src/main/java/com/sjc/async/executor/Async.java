@@ -1,6 +1,9 @@
 package com.sjc.async.executor;
 
+import com.sjc.async.callback.DefaultGroupCallback;
+import com.sjc.async.callback.IGroupCallback;
 import com.sjc.async.group.WorkerWrapper;
+
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -14,7 +17,7 @@ import java.util.stream.Collectors;
  * {@code @date} 2024/12/11
  * {@code @msg} reserved
  */
-// 启动类
+// 类入口 可以根据自己情况调整core线程的数量
 @SuppressWarnings("ALL")
 public class Async {
     public static final ThreadPoolExecutor COMMON_POOL =
@@ -44,6 +47,25 @@ public class Async {
     }
     public static void beginWork (long timeout , WorkerWrapper... workerWrapper) throws ExecutionException, InterruptedException {
         beginWork(timeout , COMMON_POOL , workerWrapper);
+    }
+
+    /**
+     *  异步执行，知道所有的都完成，或者失败后，发起回调
+     */
+    public static void beginWorkAsync (long timeout , IGroupCallback groupCallback , WorkerWrapper... workerWrapper) {
+        if (groupCallback == null) {
+            groupCallback = new DefaultGroupCallback();
+        }
+        IGroupCallback finalGroupCallback = groupCallback;
+        CompletableFuture.runAsync(() -> {
+            try {
+                beginWork(timeout , COMMON_POOL , workerWrapper);
+                finalGroupCallback.success(Arrays.asList(workerWrapper));
+            } catch (ExecutionException | InterruptedException e) {
+                e.printStackTrace();
+                finalGroupCallback.failure(Arrays.asList(workerWrapper) , e);
+            }
+        });
     }
 
     // 所有的执行单元
