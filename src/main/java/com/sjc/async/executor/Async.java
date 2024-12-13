@@ -75,6 +75,7 @@ public class Async {
     }
 
     // 所有的执行单元
+    @SuppressWarnings("unchecked") // 忽略 未经检查的类型转换的错误
     private static void totalWorkers(List<WorkerWrapper> workerWrappers, Set<WorkerWrapper> set) {
         set.addAll(workerWrappers);
         for (WorkerWrapper wrapper : workerWrappers) {

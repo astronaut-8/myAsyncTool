@@ -23,7 +23,7 @@ public class WorkResult<V> {
        this(result, resultState, null);
     }
 
-    public static WorkResult defaultResult () {
+    public static <V> WorkResult<V> defaultResult () {
         return new WorkResult(null , ResultState.Default);
     }
 

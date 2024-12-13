@@ -90,13 +90,13 @@ public class WorkerWrapper<T, V> {
         }
         // 如果没有任何依赖，说明自己就是第一批要执行的
         if (dependWrappers == null || dependWrappers.isEmpty()) {
-            fire(poolExecutor, remainTime);
+            fire();
             beginNext(poolExecutor, now, remainTime);
             return;
         }
         // 前方只有一个依赖
         if (dependWrappers.size() == 1) {
-            doDependsOneJob(poolExecutor, fromWrapper, remainTime);
+            doDependsOneJob(fromWrapper);
             beginNext(poolExecutor, now, remainTime);
             return;
         }
@@ -150,7 +150,7 @@ public class WorkerWrapper<T, V> {
     }
 
 
-    private void doDependsOneJob(ThreadPoolExecutor poolExecutor, WorkerWrapper dependWrapper, long remainTime) {
+    private void doDependsOneJob(WorkerWrapper dependWrapper) {
 
         if (ResultState.TIMEOUT == dependWrapper.getWorkResult().getResultState()) {
             workResult = defaultResult();
@@ -160,7 +160,7 @@ public class WorkerWrapper<T, V> {
             fastFail(INIT , null);
         } else {
             //前面任务正常执行完毕，轮到自己了
-            fire(poolExecutor , remainTime);
+            fire();
         }
     }
 
@@ -183,7 +183,7 @@ public class WorkerWrapper<T, V> {
             if (ResultState.TIMEOUT == fromWrapper.getWorkResult().getResultState()) {
                 fastFail(INIT , null);
             } else {
-                fire(poolExecutor , remainTime);
+                fire();
             }
             beginNext(poolExecutor , now , remainTime);
             return;
@@ -231,7 +231,7 @@ public class WorkerWrapper<T, V> {
 
         // 如果依赖的wrapper 都执行结束了 就到自己了
         if (!existNotFinish) {
-            fire(poolExecutor , remainTime);
+            fire();
             beginNext(poolExecutor , now , remainTime);
             return;
         }
@@ -240,7 +240,7 @@ public class WorkerWrapper<T, V> {
     /**
      * 执行自己的job，具体执行在另一个线程，判断阻塞超时在这个work线程(？？？没看懂)
      */
-    private void fire(ThreadPoolExecutor poolExecutor, long remainTime) {
+    private void fire() {
         // 阻塞获得结果
         workResult = workerDoJob();
     }
