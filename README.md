@@ -123,3 +123,33 @@ addDepend默认是自动must的，也就是添加的所有Depend 都要执行完
 
 
 提供一个setDependNotMust 方法 把一些wrapper设置成不是必须的
+
+
+
+当控制台(Async 中的线程池 设置的总时间) 时间耗尽了
+
+使用递归 把所有任务(包括它的next 任务) 全部加入一个set
+
+对set中的每一个任务(INIT 或者 WORKING) 的fastFail 成 ERROR状态
+
+
+
+
+
+如何控制 控制台的超时时间呢
+
+普通任务使用CompletableFuture.runAsync 异步执行
+
+使用CompletableFuture来进行异步任务的调度
+
+使用allof 将所有的调度任务作为一个新的CompletableFuture的参数
+
+这个CompletableFuture 去 get 等待timeout的时间
+
+本身没有返回值 如果future任务都在timeout内执行完毕 返回null
+
+否则直接报错
+
+```java
+CompletableFuture.allOf(futures).get(timeout , TimeUnit.MILLISECONDS);
+```
