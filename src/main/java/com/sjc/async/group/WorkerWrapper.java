@@ -56,7 +56,7 @@ public class WorkerWrapper<T, V> {
      * 钩子变量
      * 存放临时结果
      */
-    private volatile WorkResult<V> workResult;
+    private volatile WorkResult<V> workResult = WorkResult.defaultResult();
 
 
     public WorkerWrapper(IWorker<T, V> worker, ICallback<T, V> callback, T param) {
@@ -206,8 +206,8 @@ public class WorkerWrapper<T, V> {
             WorkerWrapper workerWrapper = dependWrapper.getDependWrapper();
             WorkResult tempWorkResult = workerWrapper.getWorkResult();
 
-            // 没有结果或者状态为Working 代表没有执行完
-            if (tempWorkResult == null || workerWrapper.getState() == WORKING) {
+            // 状态为INIT或者状态为Working 代表没有执行完
+            if (workerWrapper.getState() == INIT || workerWrapper.getState() == WORKING) {
                 existNotFinish = true;
                 break;
             }
@@ -245,7 +245,7 @@ public class WorkerWrapper<T, V> {
         workResult = workerDoJob();
     }
     private WorkResult<V> workerDoJob() {
-        if (workResult != null) {
+        if (!checkIsNullResult()) {
             return workResult;
         }
         try {
@@ -258,22 +258,22 @@ public class WorkerWrapper<T, V> {
 
             //耗时操作
             V resultValue = worker.action(getParam());
-            WorkResult<V> tempResult = new WorkResult<>(resultValue , ResultState.SUCCESS);
 
             // 如果状态不是working ， 说明别的地方修改了
             if (!compareAndSetState(WORKING , FINISHED)) {
                 return workResult;
             }
 
+            workResult.setResultState(ResultState.SUCCESS);
+            workResult.setResult(resultValue);
             // 回调成功
-            callback.result(true , getParam() , tempResult);
-            workResult = tempResult;
+            callback.result(true , getParam() , workResult);
 
             return workResult;
         } catch (Exception e) {
 
             // 避免重复回调
-            if (workResult != null) {
+            if (checkIsNullResult()) {
                 return workResult;
             }
             System.err.println("执行自己的job失败喽");
@@ -294,7 +294,7 @@ public class WorkerWrapper<T, V> {
             return false;
         }
 
-        if (workResult == null) {
+        if (checkIsNullResult()) {
             if (e == null) {
                 workResult = defaultResult();
             } else {
@@ -363,11 +363,20 @@ public class WorkerWrapper<T, V> {
         return this.state.compareAndSet(expect , update);
     }
 
+    private boolean checkIsNullResult () {
+        // result 是否处于初始化状态
+        return ResultState.Default == workResult.getResultState();
+    }
     private WorkResult<V> defaultResult() {
-        return new WorkResult<>(getWorker().defaultValue() , ResultState.TIMEOUT);
+        workResult.setResultState(ResultState.TIMEOUT);
+        workResult.setResult(getWorker().defaultValue());
+        return workResult;
     }
     private WorkResult<V> defaultExResult(Exception ex) {
-        return new WorkResult<>(getWorker().defaultValue() , ResultState.EXCEPTION, ex);
+        workResult.setResultState(ResultState.EXCEPTION);
+        workResult.setResult(getWorker().defaultValue());
+        workResult.setEx(ex);
+        return workResult;
     }
     public T getParam() {
         return param;

@@ -8,5 +8,6 @@ package com.sjc.async.worker;
 public enum ResultState {
     SUCCESS,
     TIMEOUT,
-    EXCEPTION
+    EXCEPTION,
+    Default // 默认状态
 }
