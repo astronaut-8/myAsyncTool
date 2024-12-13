@@ -153,3 +153,27 @@ addDepend默认是自动must的，也就是添加的所有Depend 都要执行完
 ```java
 CompletableFuture.allOf(futures).get(timeout , TimeUnit.MILLISECONDS);
 ```
+
+
+
+
+
+
+
+
+
+
+
+------------------------
+
+father wrapper 和 next wrapper 之间 数据传递的原理(next wrapper 的 入参  为 father wrapper的返回值)
+
+更改了原来WorkerRsult的逻辑 在一个wrapper 初始化的时候就对这个reult进行赋值(状态设置为DEFAULT)
+
+后期使用这个DEFAULT 状态值 来判断result是否被跟新过
+
+在 wrapper 初期 对result赋值而不是 = null 的原因就在于 可以在一个wrapper 赋值完毕后，就去获得到它result的引用(wrapper的内部方法调用 只是在填充这个result 而不会重新new了)
+
+拿到引用意味着 可以 提前把引用注入到 nextWrapper的入参中 而不用等到 一个 Wrapper执行完毕后才能获取result 再开启新的wrapper逻辑 (同步调用)
+
+这个思想逻辑 其实很简单 也比较类似于 Spring 框架中对于 循环依赖的解决思路(不考虑proxy的时候) 
