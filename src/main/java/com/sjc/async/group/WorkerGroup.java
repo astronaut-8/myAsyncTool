@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
+ * 最终要执行的时候，都要放到一个group里，group集合会并发所有的wrapper
  * 暂时用不到
  */
 public class WorkerGroup {
