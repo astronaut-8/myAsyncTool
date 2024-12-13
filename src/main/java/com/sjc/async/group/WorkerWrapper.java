@@ -98,10 +98,11 @@ public class WorkerWrapper<T, V> {
         if (dependWrappers.size() == 1) {
             doDependsOneJob(fromWrapper);
             beginNext(poolExecutor, now, remainTime);
-            return;
+        } else{
+            //多个依赖的情况，会被前方的依赖任务多次唤醒，需要判断是否全部执行完毕
+            doDependsJobs(poolExecutor, dependWrappers, fromWrapper, now, remainTime);
         }
-        //多个依赖的情况，会被前方的依赖任务多次唤醒，需要判断是否全部执行完毕
-        doDependsJobs(poolExecutor, dependWrappers, fromWrapper, now, remainTime);
+
     }
 
 
@@ -249,7 +250,7 @@ public class WorkerWrapper<T, V> {
             return workResult;
         }
         try {
-            // 如果不是init状态了
+            // 如果不是init状态了 - 说明正在被执行或已经执行完毕 防止被重复执行
             if (!compareAndSetState(INIT , WORKING)) {
                 return workResult;
             }
