@@ -84,7 +84,7 @@ public class WorkerWrapper<T, V> {
             return;
         }
         // 如果自己执行过了，不要反复执行(有多个依赖，别多个依赖唤醒？)
-        if (getState() != INIT) {
+        if (getState() == FINISHED || getState() == ERROR) {
             beginNext(poolExecutor, now, remainTime);
             return;
         }
@@ -165,7 +165,7 @@ public class WorkerWrapper<T, V> {
         }
     }
 
-    private void doDependsJobs(ThreadPoolExecutor poolExecutor, List<DependWrapper> dependWrappers, WorkerWrapper fromWrapper, long now, long remainTime) {
+    private synchronized void doDependsJobs(ThreadPoolExecutor poolExecutor, List<DependWrapper> dependWrappers, WorkerWrapper fromWrapper, long now, long remainTime) {
         // 上游father 任务是否为must的
         boolean nowDependIsMust = false;
         // 必须要完成的上游wrapper的集合
@@ -230,6 +230,7 @@ public class WorkerWrapper<T, V> {
             return;
         }
 
+        System.out.println(Thread.currentThread().getName() + " if exist----" + existNotFinish);
         // 如果依赖的wrapper 都执行结束了 就到自己了
         if (!existNotFinish) {
             fire();

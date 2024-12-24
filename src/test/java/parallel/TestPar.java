@@ -19,7 +19,8 @@ public class TestPar {
         //testMulti4();
         //testMulti5();
         //testMulti6();
-        testMulti7();
+        //testMulti7();
+        testMulti8();
     }
 
     /**
@@ -273,6 +274,33 @@ public class TestPar {
         System.out.println("cost - " + (SystemClock.now() - now));
 
         System.out.println("threadCount - " + Async.getThreadCount());
+        Async.shutDown();
+    }
+
+    /**
+     * a1 -> b -> c
+     * a2 -> b -> c
+     * 高并发环境下 不能同时进入doDependsJob
+     */
+    private static void testMulti8() throws ExecutionException, InterruptedException {
+        ParWorker w = new ParWorker();
+        ParWorker1 w1 = new ParWorker1();
+
+        ParWorker2 w2 = new ParWorker2();
+        w2.setSleepTime(3000);
+        ParWorker3 w3 = new ParWorker3();
+        w3.setSleepTime(1000);
+
+        WorkerWrapper<String, String> workerWrapper = new WorkerWrapper<>(w, w, "a1");
+        WorkerWrapper<String, String> workerWrapper1 = new WorkerWrapper<>(w1, w2, "a2");
+        WorkerWrapper<String, String> workerWrapper2 = new WorkerWrapper<>(w1, w2, "b");
+        WorkerWrapper<String, String> workerWrapper3 = new WorkerWrapper<>(w2, w2, "c");
+        workerWrapper.addNext(workerWrapper2);
+        workerWrapper1.addNext(workerWrapper2);
+
+        workerWrapper2.addNext(workerWrapper3);
+
+        Async.beginWork(6000 , workerWrapper , workerWrapper1);
         Async.shutDown();
     }
 }

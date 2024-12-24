@@ -11,6 +11,12 @@ import com.sjc.async.worker.WorkResult;
  * {@code @msg} reserved
  */
 public class ParWorker1 implements IWorker<String, String>, ICallback<String, String> {
+    private long sleepTime = 1000;
+
+    public void setSleepTime(long sleepTime) {
+        this.sleepTime = sleepTime;
+    }
+
     @Override
     public void begin() {
         System.out.println(Thread.currentThread().getName() + "---start---" + System.currentTimeMillis());
@@ -30,7 +36,7 @@ public class ParWorker1 implements IWorker<String, String>, ICallback<String, St
     @Override
     public String action(String object) {
         try {
-            Thread.sleep(1000);
+            Thread.sleep(sleepTime);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
