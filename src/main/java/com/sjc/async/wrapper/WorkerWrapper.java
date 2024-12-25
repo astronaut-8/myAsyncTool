@@ -1,4 +1,4 @@
-package com.sjc.async.group;
+package com.sjc.async.wrapper;
 
 /*
   @author abstractMoonAstronaut
@@ -32,6 +32,7 @@ public class WorkerWrapper<T, V> {
     private static final int FINISHED = 1;
     private static final int ERROR = 2;
     private static final int WORKING = 3;
+    private static final int SKIPPED = 4;
 
     private T param;
 
@@ -44,6 +45,15 @@ public class WorkerWrapper<T, V> {
 
     // 自己依赖的wrappers，全部依赖执行完成后才能执行自己
     private List<DependWrapper> dependWrappers;
+
+    /**
+     * 1
+     *  -------3
+     * 2
+     * 如果2执行前发现3执行完毕了(被1触发) 则 2没必要再执行
+     * 2的nextWrapper只有一个才可以
+     */
+    private volatile boolean checkNextWrapperResult;
 
     /**
      * 标识此事件是否被执行过了
@@ -87,6 +97,16 @@ public class WorkerWrapper<T, V> {
         if (getState() == FINISHED || getState() == ERROR) {
             beginNext(poolExecutor, now, remainTime);
             return;
+        }
+        if (checkNextWrapperResult) {
+            if (nextWrappers != null && nextWrappers.size() == 1) {
+                WorkerWrapper nextWrapper = nextWrappers.get(0);
+                if (nextWrapper.getState() == FINISHED || nextWrapper.getState() == ERROR) {
+                    compareAndSetState(INIT , SKIPPED);
+                    beginNext(poolExecutor, now, remainTime);
+                    return;
+                }
+            }
         }
         // 如果没有任何依赖，说明自己就是第一批要执行的
         if (dependWrappers == null || dependWrappers.isEmpty()) {

@@ -1,4 +1,4 @@
-package com.sjc.async.group;
+package com.sjc.async.wrapper;
 
 /*
  * @author abstractMoonAstronaut

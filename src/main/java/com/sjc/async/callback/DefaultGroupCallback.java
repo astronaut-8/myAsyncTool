@@ -1,6 +1,6 @@
 package com.sjc.async.callback;
 
-import com.sjc.async.group.WorkerWrapper;
+import com.sjc.async.wrapper.WorkerWrapper;
 
 import java.util.List;
 

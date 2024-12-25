@@ -1,7 +1,7 @@
 package depend;
 
 import com.sjc.async.executor.Async;
-import com.sjc.async.group.WorkerWrapper;
+import com.sjc.async.wrapper.WorkerWrapper;
 import com.sjc.async.worker.WorkResult;
 
 import java.util.concurrent.ExecutionException;

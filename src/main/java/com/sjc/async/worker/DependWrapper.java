@@ -1,6 +1,6 @@
 package com.sjc.async.worker;
 
-import com.sjc.async.group.WorkerWrapper;
+import com.sjc.async.wrapper.WorkerWrapper;
 
 /**
  * @author abstractMoonAstronaut

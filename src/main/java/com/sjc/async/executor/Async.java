@@ -2,7 +2,7 @@ package com.sjc.async.executor;
 
 import com.sjc.async.callback.DefaultGroupCallback;
 import com.sjc.async.callback.IGroupCallback;
-import com.sjc.async.group.WorkerWrapper;
+import com.sjc.async.wrapper.WorkerWrapper;
 
 
 import java.util.Arrays;
