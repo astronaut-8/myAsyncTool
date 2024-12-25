@@ -9,6 +9,7 @@ package com.sjc.async.wrapper;
 import com.sjc.async.callback.DefaultCallback;
 import com.sjc.async.callback.ICallback;
 import com.sjc.async.callback.IWorker;
+import com.sjc.async.exception.SkippedException;
 import com.sjc.async.executor.timer.SystemClock;
 import com.sjc.async.worker.DependWrapper;
 import com.sjc.async.worker.ResultState;
@@ -32,7 +33,6 @@ public class WorkerWrapper<T, V> {
     private static final int FINISHED = 1;
     private static final int ERROR = 2;
     private static final int WORKING = 3;
-    private static final int SKIPPED = 4;
 
     private T param;
 
@@ -53,7 +53,7 @@ public class WorkerWrapper<T, V> {
      * 如果2执行前发现3执行完毕了(被1触发) 则 2没必要再执行
      * 2的nextWrapper只有一个才可以
      */
-    private volatile boolean checkNextWrapperResult;
+    private volatile boolean needCheckNextWrapperResult = true;
 
     /**
      * 标识此事件是否被执行过了
@@ -98,14 +98,12 @@ public class WorkerWrapper<T, V> {
             beginNext(poolExecutor, now, remainTime);
             return;
         }
-        if (checkNextWrapperResult) {
-            if (nextWrappers != null && nextWrappers.size() == 1) {
-                WorkerWrapper nextWrapper = nextWrappers.get(0);
-                if (nextWrapper.getState() == FINISHED || nextWrapper.getState() == ERROR) {
-                    compareAndSetState(INIT , SKIPPED);
-                    beginNext(poolExecutor, now, remainTime);
-                    return;
-                }
+        if (needCheckNextWrapperResult) {
+            // 如果自己唯一的一个nextWrapper已经出现结果或者开始执行新的任务，自己就不用继续了
+            if (!checkNextWrapperResult()) {
+                fastFail(INIT , new SkippedException());
+                beginNext(poolExecutor, now, remainTime);
+                return;
             }
         }
         // 如果没有任何依赖，说明自己就是第一批要执行的
@@ -125,7 +123,18 @@ public class WorkerWrapper<T, V> {
 
     }
 
+    private boolean checkNextWrapperResult() {
+        // 如果自己是最后一个 或者后面有多个并行任务，则需要执行此任务
+        if (nextWrappers == null || nextWrappers.size() != 1) {
+            return getState() == INIT;
+        }
+        WorkerWrapper nextWrapper = nextWrappers.get(0);
+        boolean state = nextWrapper.getState() == INIT;
 
+
+        // 继续校验自己的next的状态
+        return state && nextWrapper.checkNextWrapperResult();
+    }
 
 
     public void work(ThreadPoolExecutor poolExecutor , long remainTime) {
@@ -448,5 +457,13 @@ public class WorkerWrapper<T, V> {
 
     public void setNextWrappers(List<WorkerWrapper<?, ?>> nextWrappers) {
         this.nextWrappers = nextWrappers;
+    }
+
+    public boolean isNeedCheckNextWrapperResult() {
+        return needCheckNextWrapperResult;
+    }
+
+    public void setNeedCheckNextWrapperResult(boolean needCheckNextWrapperResult) {
+        this.needCheckNextWrapperResult = needCheckNextWrapperResult;
     }
 }

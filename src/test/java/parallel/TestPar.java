@@ -20,7 +20,8 @@ public class TestPar {
         //testMulti5();
         //testMulti6();
         //testMulti7();
-        testMulti8();
+        //testMulti8();
+        testMulti9();
     }
 
     /**
@@ -302,5 +303,38 @@ public class TestPar {
 
         Async.beginWork(6000 , workerWrapper , workerWrapper1);
         Async.shutDown();
+    }
+
+    /**
+     *  w1 - w2 - w3
+     *               last
+     *     w
+     *   w1 w 并行执行，w执行完毕执行last bc不用开始了
+     */
+    private static void testMulti9 () throws ExecutionException, InterruptedException {
+        ParWorker w = new ParWorker();
+        ParWorker1 w1 = new ParWorker1();
+        ParWorker2 w2 = new ParWorker2();
+        ParWorker3 w3 = new ParWorker3();
+        ParWorker4 w4 = new ParWorker4();
+
+        WorkerWrapper<String, String> workerWrapper = new WorkerWrapper<>(w, w, "w");
+        WorkerWrapper<String, String> workerWrapper1 = new WorkerWrapper<>(w1, w1, "w1");
+        WorkerWrapper<String, String> workerWrapper2 = new WorkerWrapper<>(w2, w2, "w2");
+        WorkerWrapper<String, String> workerWrapper3 = new WorkerWrapper<>(w3, w3, "w3");
+        WorkerWrapper<String, String> last = new WorkerWrapper<>(w4, w4, "last");
+
+        workerWrapper.addNext(last);
+
+        workerWrapper1.addNext(workerWrapper2);
+        workerWrapper2.addNext(workerWrapper3);
+        workerWrapper3.addNext(last);
+
+        last.setDependNotMust(workerWrapper);
+        last.setDependNotMust(workerWrapper3);
+
+        Async.beginWork(6000 , workerWrapper , workerWrapper1);
+        Async.shutDown();
+
     }
 }
