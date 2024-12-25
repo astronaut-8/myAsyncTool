@@ -208,3 +208,56 @@ public interface IGroupCallback {
 
 
 别的小东西 不是很重要 源码的V1.0 就结束了
+
+
+
+
+
+branch - V1.1
+
+V1.1 当中没有什么大的升级
+
+最主要的一个功能就是 在具体执行任务的时候 会去判断自己的nextWrapper是否执行过了或者正在执行
+
+一下情况
+
+w1 - w2
+
+​	---- w3
+
+w4
+
+w1 w2 seq执行
+
+w2 , w4 后都是w3 并且不是必须依赖
+
+那么如果比如w4 执行完后 w3被唤醒 w2 去work的时候发现自己的nextWrapper在执行了 自己就没有执行的必要了
+
+只有 wrapper 只有一个nextWrapper的时候才可以，不然可能一个没有执行的必要 但是别的nextWrapper还需要被这个Wrapper唤醒
+
+```java
+private boolean checkNextWrapperResult() {
+    // 如果自己是最后一个 或者后面有多个并行任务，则需要执行此任务
+    if (nextWrappers == null || nextWrappers.size() != 1) {
+        return getState() == INIT;
+    }
+    WorkerWrapper nextWrapper = nextWrappers.get(0);
+    boolean state = nextWrapper.getState() == INIT;
+
+
+    // 继续校验自己的next的状态
+    return state && nextWrapper.checkNextWrapperResult();
+}
+```
+
+在一直只有一个nextWrapper的情况下 会不断next next
+
+单条的依赖链上 下游的一个Wrapper执行完了，前面的也没有必要了，注意是**单条的**
+
+
+
+作者本来想使用一个新的State = 4 来表示这一Wrapper
+
+但是状态代码的耦合度比较大的 别的代码兼容度低
+
+所以选择在发生这一情况的时候去抛出一个Exception(SkippedException)
