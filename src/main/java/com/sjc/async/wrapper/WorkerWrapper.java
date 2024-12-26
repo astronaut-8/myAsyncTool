@@ -69,7 +69,7 @@ public class WorkerWrapper<T, V> {
     private volatile WorkResult<V> workResult = WorkResult.defaultResult();
 
 
-    public WorkerWrapper(IWorker<T, V> worker, ICallback<T, V> callback, T param) {
+    private WorkerWrapper(IWorker<T, V> worker, ICallback<T, V> callback, T param) {
         if (worker == null) {
             throw new NullPointerException("async.worker is null");
         }
@@ -288,7 +288,7 @@ public class WorkerWrapper<T, V> {
             callback.begin();
 
             //耗时操作
-            V resultValue = worker.action(getParam());
+            V resultValue = worker.action(param);
 
             // 如果状态不是working ， 说明别的地方修改了
             if (!compareAndSetState(WORKING , FINISHED)) {
@@ -298,7 +298,7 @@ public class WorkerWrapper<T, V> {
             workResult.setResultState(ResultState.SUCCESS);
             workResult.setResult(resultValue);
             // 回调成功
-            callback.result(true , getParam() , workResult);
+            callback.result(true , param , workResult);
 
             return workResult;
         } catch (Exception e) {
@@ -312,6 +312,7 @@ public class WorkerWrapper<T, V> {
             return workResult;
         }
     }
+
 
     /**
      * 快速失败
@@ -334,34 +335,12 @@ public class WorkerWrapper<T, V> {
         }
 
         // 回调函数
-        callback.result(false , getParam() , workResult);
+        callback.result(false , param , workResult);
         return false;
     }
 
-    public WorkerWrapper addNext(WorkerWrapper<?,?>... nextWrappers) {
-        if (nextWrappers == null) {
-            return this;
-        }
-        for (WorkerWrapper<?,?> nextWrapper : nextWrappers) {
-            addNext(nextWrapper);
-        }
-        return this;
-    }
-    public WorkerWrapper addNext(IWorker<T,V> worker , T param , ICallback<T, V> callback) {
-        WorkerWrapper<T, V> workerWrapper = new WorkerWrapper<>(worker , callback , param);
-        return this.addNext(workerWrapper);
-    }
-    public WorkerWrapper addNext(WorkerWrapper<?,?> nextWrapper) {
-        if (nextWrappers == null) {
-            nextWrappers = new ArrayList<>();
-        }
-        nextWrappers.add(nextWrapper);
-        nextWrapper.addDepend(this);
-        return this;
-    }
-    private void addDepend(WorkerWrapper<? , ?> workerWrapper ){
-        this.addDepend(workerWrapper , true);
-    }
+
+
     private void addDepend(WorkerWrapper<? , ?> workerWrapper ,boolean must){
         if (dependWrappers == null) {
             dependWrappers = new ArrayList<>();
@@ -369,38 +348,10 @@ public class WorkerWrapper<T, V> {
         dependWrappers.add(new DependWrapper(workerWrapper , must));
     }
 
-    /**
-     *  直接set next
-     */
-    public WorkerWrapper setNext ( WorkerWrapper<?,?>... nextWrappers) {
-        if (nextWrappers != null) {
-            this.nextWrappers.clear();
-        }
-        return addNext(nextWrappers);
-    }
-    // 设置几个依赖的wrapper 不是 must 执行完毕才能执行自己
-    public void setDependNotMust(WorkerWrapper<? ,?> ... workerWrappers) {
-        if (dependWrappers == null) {
-            return;
-        }
-        if (workerWrappers == null) {
-            return;
-        }
-        for (DependWrapper dependWrapper : dependWrappers) {
-            for (WorkerWrapper wrapper : workerWrappers) {
-                if (dependWrapper.getDependWrapper().equals(wrapper)) {
-                    dependWrapper.setMust(false);
-                }
-            }
-        }
-    }
-    private WorkResult<V> getNoneNullWorkResult() {
-        if (workResult == null) {
-            return defaultResult();
-        }
-        return workResult;
-    }
-    public boolean compareAndSetState(int expect , int update) {
+
+
+
+    private boolean compareAndSetState(int expect , int update) {
         return this.state.compareAndSet(expect , update);
     }
 
@@ -410,26 +361,18 @@ public class WorkerWrapper<T, V> {
     }
     private WorkResult<V> defaultResult() {
         workResult.setResultState(ResultState.TIMEOUT);
-        workResult.setResult(getWorker().defaultValue());
+        workResult.setResult(worker.defaultValue());
         return workResult;
     }
     private WorkResult<V> defaultExResult(Exception ex) {
         workResult.setResultState(ResultState.EXCEPTION);
-        workResult.setResult(getWorker().defaultValue());
+        workResult.setResult(worker.defaultValue());
         workResult.setEx(ex);
         return workResult;
     }
-    public T getParam() {
-        return param;
-    }
 
-    public IWorker<T, V> getWorker() {
-        return worker;
-    }
 
-    public ICallback<T, V> getCallback() {
-        return callback;
-    }
+
 
     public List<WorkerWrapper<?, ?>> getNextWrappers() {
         return nextWrappers;
@@ -443,7 +386,7 @@ public class WorkerWrapper<T, V> {
         return workResult;
     }
 
-    public int getState() {
+    private int getState() {
         return state.get();
     }
 
@@ -455,15 +398,88 @@ public class WorkerWrapper<T, V> {
         this.dependWrappers = dependWrappers;
     }
 
-    public void setNextWrappers(List<WorkerWrapper<?, ?>> nextWrappers) {
-        this.nextWrappers = nextWrappers;
-    }
+
 
     public boolean isNeedCheckNextWrapperResult() {
         return needCheckNextWrapperResult;
     }
 
-    public void setNeedCheckNextWrapperResult(boolean needCheckNextWrapperResult) {
+    private void setNeedCheckNextWrapperResult(boolean needCheckNextWrapperResult) {
         this.needCheckNextWrapperResult = needCheckNextWrapperResult;
+    }
+
+    public void setNextWrappers(List<WorkerWrapper<?, ?>> nextWrappers) {
+        this.nextWrappers = nextWrappers;
+    }
+
+    public void setParam(T param) {
+        this.param = param;
+    }
+
+    public static class Builder<W , C> {
+        private W param;
+        private IWorker<W , C> worker;
+        private ICallback<W ,C> callback;
+
+        private List<WorkerWrapper<? ,?>> nextWrappers; // 自己后面所有的wrapper
+        private Set<WorkerWrapper<? ,?>> selfIsMustSet; // 强依赖于自己的wrapper
+
+        private boolean needCheckNextWrapperResult = true;
+
+        public Builder<W ,C> worker(IWorker<W ,C> worker){
+            this.worker = worker;
+            return this;
+        }
+        public Builder<W ,C> param(W w){
+            this.param = w;
+            return this;
+        }
+        public Builder<W ,C> callback(ICallback<W ,C> callback){
+            this.callback = callback;
+            return this;
+        }
+        public Builder<W ,C> needCheckNextWrapperResult(boolean needCheckNextWrapperResult){
+            this.needCheckNextWrapperResult = needCheckNextWrapperResult;
+            return this;
+        }
+        public Builder<W ,C> next(WorkerWrapper<? ,?> wrapper , boolean selfIsMust) {
+            if (nextWrappers == null) {
+                nextWrappers = new ArrayList<>();
+            }
+            nextWrappers.add(wrapper);
+
+            if (selfIsMust) {
+                if (selfIsMustSet == null) {
+                    selfIsMustSet = new HashSet<>();
+                }
+                selfIsMustSet.add(wrapper);
+            }
+            return this;
+        }
+        public Builder<W ,C> next (WorkerWrapper<? ,?> wrapper) {
+            return next(wrapper , true);
+        }
+        public Builder<W ,C> next(WorkerWrapper<? ,?> ... wrappers) {
+            if (wrappers == null) {
+                return this;
+            }
+            for (WorkerWrapper<? ,?> wrapper : wrappers) {
+                next(wrapper , true);
+            }
+            return this;
+        }
+        public WorkerWrapper<W ,C> build() {
+            WorkerWrapper<W ,C> wrapper = new WorkerWrapper<>(worker , callback , param);
+            wrapper.setNeedCheckNextWrapperResult(needCheckNextWrapperResult);
+            wrapper.setNextWrappers(nextWrappers);
+            if (nextWrappers != null && !nextWrappers.isEmpty()) {
+                for (WorkerWrapper<? ,?> workerWrapper : nextWrappers) {
+                    if (!selfIsMustSet.isEmpty()) {
+                        workerWrapper.addDepend(wrapper , selfIsMustSet.contains(workerWrapper));
+                    }
+                }
+            }
+            return wrapper;
+        }
     }
 }

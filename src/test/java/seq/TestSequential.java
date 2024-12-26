@@ -18,13 +18,24 @@ public class TestSequential {
         SeqWorker1 w1 = new SeqWorker1();
         SeqWorker2 w2 = new SeqWorker2();
 
-        SeqTimeoutWorker t = new SeqTimeoutWorker();
-        WorkerWrapper<String, String> workerWrapper = new WorkerWrapper<>(w, w, "0");
-        WorkerWrapper<String, String> workerWrapper1 = new WorkerWrapper<>(w1, w1, "1");
-        WorkerWrapper<String, String> workerWrapper2 = new WorkerWrapper<>(w2, w2, "2");
+        WorkerWrapper<String,String> workerWrapper2 = new WorkerWrapper.Builder<String , String>()
+                .worker(w2)
+                .callback(w2)
+                .param("2")
+                .build();
+        WorkerWrapper<String,String> workerWrapper1 = new WorkerWrapper.Builder<String , String>()
+                .worker(w1)
+                .callback(w1)
+                .param("1")
+                .next(workerWrapper2)
+                .build();
+        WorkerWrapper<String,String> workerWrapper = new WorkerWrapper.Builder<String , String>()
+                .worker(w)
+                .callback(w)
+                .param("0")
+                .next(workerWrapper1)
+                .build();
 
-        workerWrapper.addNext(workerWrapper1);
-        workerWrapper1.addNext(workerWrapper2);
 
         //testNormal(workerWrapper);
         testGroupTimeout(workerWrapper);

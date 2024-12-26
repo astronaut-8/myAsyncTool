@@ -17,21 +17,31 @@ public class Test {
         DeWorker1 w1 = new DeWorker1();
         DeWorker2 w2 = new DeWorker2();
 
-        WorkerWrapper<String , User> workerWrapper = new WorkerWrapper<>(w , w,"0");
-        WorkResult<User> workResult = workerWrapper.getWorkResult(); // 经过上一个commit的优化 这里可以获取到result 了 result在初始化阶段就有了
+        WorkerWrapper<WorkResult<User> , String> workerWrapper2 = new WorkerWrapper.Builder<WorkResult<User> , String>()
+                .worker(w2)
+                        .callback(w2)
+                                .build();
 
-        WorkerWrapper<WorkResult<User> , User> workerWrapper1 = new WorkerWrapper<>(w1 , w1 , workResult);
-        WorkResult<User> workResult1 = workerWrapper1.getWorkResult();
+        WorkerWrapper<WorkResult<User> , User> workerWrapper1 = new WorkerWrapper.Builder<WorkResult<User> , User>()
+                .worker(w1)
+                .callback(w1)
+                .next(workerWrapper2)
+                .build();
+        WorkerWrapper<String , User> workerWrapper = new WorkerWrapper.Builder<String , User>()
+                .worker(w)
+                .callback(w)
+                .param("0")
+                .next(workerWrapper1)
+                .build();
 
-        WorkerWrapper<WorkResult<User> , String> workerWrapper2 = new WorkerWrapper<>(w2 , w2 , workResult1);
+        WorkResult<User> result = workerWrapper.getWorkResult();
+        WorkResult<User> result1 = workerWrapper1.getWorkResult();
 
-        workerWrapper.addNext(workerWrapper1);
-        workerWrapper1.addNext(workerWrapper2);
+        workerWrapper1.setParam(result);
+        workerWrapper2.setParam(result1);
 
         Async.beginWork(3500 , workerWrapper);
-
         System.out.println(workerWrapper2.getWorkResult());
-
         Async.shutDown();
     }
 }

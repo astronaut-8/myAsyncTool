@@ -21,33 +21,24 @@ public class TestSequentialTimeout {
         SeqWorker2 w2 = new SeqWorker2();
         SeqTimeoutWorker t = new SeqTimeoutWorker();
 
-        WorkerWrapper<String, String> workerWrapperT = new WorkerWrapper<>(t, t, "t");
-        WorkerWrapper<String, String> workerWrapper1 = new WorkerWrapper<>(w1, w1, "1");
-        WorkerWrapper<String, String> workerWrapper2 = new WorkerWrapper<>(w2, w2, "2");
+        WorkerWrapper<String,String> workerWrapper2 = new WorkerWrapper.Builder<String , String>()
+                .worker(w2)
+                        .callback(w2)
+                                .param("2")
+                                        .build();
+        WorkerWrapper<String,String> workerWrapper1 = new WorkerWrapper.Builder<String , String>()
+                .worker(w1)
+                .callback(w1)
+                .param("1")
+                .next(workerWrapper2)
+                .build();
+        WorkerWrapper<String,String> workerWrapperT = new WorkerWrapper.Builder<String , String>()
+                .worker(t)
+                .callback(t)
+                .param("t")
+                .next(workerWrapper1)
+                .build();
 
-        workerWrapper1.addNext(workerWrapper2);
-        workerWrapperT.addNext(workerWrapper1);
-
-        long now = SystemClock.now();
-        System.out.println("begin - " + now);
-
-        Async.beginWork(5000 , workerWrapperT);
-        System.out.println("end - " + SystemClock.now());
-        System.out.println("cost - " + (SystemClock.now() - now));
-
-        Async.shutDown();
-    }
-    public static void testSecondTimeout () throws ExecutionException, InterruptedException {
-        SeqWorker1 w1 = new SeqWorker1();
-        SeqWorker2 w2 = new SeqWorker2();
-        SeqTimeoutWorker t = new SeqTimeoutWorker();
-
-        WorkerWrapper<String, String> workerWrapperT = new WorkerWrapper<>(t, t, "t");
-        WorkerWrapper<String, String> workerWrapper1 = new WorkerWrapper<>(w1, w1, "1");
-        WorkerWrapper<String, String> workerWrapper2 = new WorkerWrapper<>(w2, w2, "2");
-
-        workerWrapper1.addNext(workerWrapper2);
-        workerWrapperT.addNext(workerWrapper1);
 
         long now = SystemClock.now();
         System.out.println("begin - " + now);
@@ -58,4 +49,5 @@ public class TestSequentialTimeout {
 
         Async.shutDown();
     }
+
 }
