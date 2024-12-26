@@ -31,6 +31,8 @@ public class WorkerWrapper<T, V> {
     private static final int ERROR = 2;
     private static final int WORKING = 3;
 
+    private String id; // wrapper 的唯一标识
+    private Map<String , WorkerWrapper> forParamUseWrappers; // 存放所有wrapper的map 用来获取wrapper的返回值
     private T param;
 
     private IWorker<T, V> worker;
@@ -66,12 +68,13 @@ public class WorkerWrapper<T, V> {
     private volatile WorkResult<V> workResult = WorkResult.defaultResult();
 
 
-    private WorkerWrapper(IWorker<T, V> worker, ICallback<T, V> callback, T param) {
+    private WorkerWrapper(String id , IWorker<T, V> worker, ICallback<T, V> callback, T param) {
         if (worker == null) {
             throw new NullPointerException("async.worker is null");
         }
         this.worker = worker;
         this.param = param;
+        this.id = id;
         if (callback == null) {
             callback = new DefaultCallback<>(); // 默认的回调方法
         }
@@ -80,7 +83,9 @@ public class WorkerWrapper<T, V> {
 
     // 整体的工作流程
     // fromWrapper 代表这个work是由上游哪一个wrapper发起的
-    private void work(ThreadPoolExecutor poolExecutor, WorkerWrapper fromWrapper, long remainTime) {
+    private void work(ThreadPoolExecutor poolExecutor, WorkerWrapper fromWrapper, long remainTime , Map<String ,WorkerWrapper> forParamUseWrappers) {
+        this.forParamUseWrappers = forParamUseWrappers;
+        forParamUseWrappers.put(id ,this);
         long now = SystemClock.now();
 
         // 总时间已经超时了，快速失败，进行下一个
@@ -136,8 +141,8 @@ public class WorkerWrapper<T, V> {
     }
 
 
-    public void work(ThreadPoolExecutor poolExecutor , long remainTime) {
-        work(poolExecutor , null , remainTime);
+    public void work(ThreadPoolExecutor poolExecutor , long remainTime , Map<String , WorkerWrapper> forParamUseWrappers) {
+        work(poolExecutor , null , remainTime , forParamUseWrappers);
     }
 
 
@@ -161,14 +166,14 @@ public class WorkerWrapper<T, V> {
             return;
         }
         if (nextWrappers.size() == 1) {
-            nextWrappers.get(0).work(poolExecutor , WorkerWrapper.this , remainTime - costTime);
+            nextWrappers.get(0).work(poolExecutor , WorkerWrapper.this , remainTime - costTime , forParamUseWrappers);
             return;
         }
         CompletableFuture[] futures = new CompletableFuture[nextWrappers.size()];
         for (int i = 0 ; i < nextWrappers.size() ; i++) {
             int finalI = i; // 是的i在lambda中可见
             futures[i] = CompletableFuture.runAsync(() ->
-                    nextWrappers.get(finalI).work(poolExecutor , WorkerWrapper.this,remainTime - costTime ) ,
+                    nextWrappers.get(finalI).work(poolExecutor , WorkerWrapper.this,remainTime - costTime , forParamUseWrappers ) ,
                     poolExecutor);
         }
         try {
@@ -287,7 +292,7 @@ public class WorkerWrapper<T, V> {
             callback.begin();
 
             //耗时操作
-            V resultValue = worker.action(param);
+            V resultValue = worker.action(param , forParamUseWrappers);
 
             // 如果状态不是working ， 说明别的地方修改了
             if (!compareAndSetState(WORKING , FINISHED)) {
@@ -400,7 +405,9 @@ public class WorkerWrapper<T, V> {
     }
 
 
-
+    public String getId() {
+        return id;
+    }
 
     public List<WorkerWrapper<?, ?>> getNextWrappers() {
         return nextWrappers;
@@ -445,6 +452,8 @@ public class WorkerWrapper<T, V> {
     }
 
     public static class Builder<W , C> {
+        // wrapper 唯一标识
+        private String id = UUID.randomUUID().toString();
         private W param;
         private IWorker<W , C> worker;
         private ICallback<W ,C> callback;
@@ -455,6 +464,12 @@ public class WorkerWrapper<T, V> {
         private boolean needCheckNextWrapperResult = true;
 
 
+        public Builder<W ,C> id (String id) {
+            if (id !=null) {
+                this.id = id;
+            }
+            return this;
+        }
         public Builder<W ,C> worker(IWorker<W ,C> worker){
             this.worker = worker;
             return this;
@@ -521,7 +536,7 @@ public class WorkerWrapper<T, V> {
             return this;
         }
         public WorkerWrapper<W ,C> build() {
-            WorkerWrapper<W ,C> wrapper = new WorkerWrapper<>(worker , callback , param);
+            WorkerWrapper<W ,C> wrapper = new WorkerWrapper<>(id , worker , callback , param);
             wrapper.setNeedCheckNextWrapperResult(needCheckNextWrapperResult);
             if (dependWrappers != null) {
                 for (DependWrapper workerWrapper : dependWrappers) {

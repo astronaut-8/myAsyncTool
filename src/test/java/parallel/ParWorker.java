@@ -4,6 +4,9 @@ import com.sjc.async.callback.ICallback;
 import com.sjc.async.callback.IWorker;
 import com.sjc.async.executor.timer.SystemClock;
 import com.sjc.async.worker.WorkResult;
+import com.sjc.async.wrapper.WorkerWrapper;
+
+import java.util.Map;
 
 /**
  * @author abstractMoonAstronaut
@@ -28,7 +31,7 @@ public class ParWorker implements IWorker<String, String>, ICallback<String, Str
     }
 
     @Override
-    public String action(String object) {
+    public String action(String object , Map<String , WorkerWrapper> allWrappers) {
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {

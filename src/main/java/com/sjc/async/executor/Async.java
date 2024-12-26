@@ -5,10 +5,7 @@ import com.sjc.async.callback.IGroupCallback;
 import com.sjc.async.wrapper.WorkerWrapper;
 
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
@@ -28,11 +25,11 @@ public class Async {
         if (workerWrappers == null || workerWrappers.size() == 0) {
             return false;
         }
-
+        Map<String ,WorkerWrapper> forParamUseWrappers = new ConcurrentHashMap<>(); // 存放所有wrapper的map，从value的wrapper获取到result
         CompletableFuture[] futures = new CompletableFuture[workerWrappers.size()];
         for (int i = 0 ; i < workerWrappers.size() ; i++) {
             WorkerWrapper wrapper = workerWrappers.get(i);
-            futures[i] = CompletableFuture.runAsync(() -> wrapper.work(pool , timeout) , pool);
+            futures[i] = CompletableFuture.runAsync(() -> wrapper.work(pool , timeout , forParamUseWrappers) , pool);
         }
         try {
             CompletableFuture.allOf(futures).get(timeout , TimeUnit.MILLISECONDS);

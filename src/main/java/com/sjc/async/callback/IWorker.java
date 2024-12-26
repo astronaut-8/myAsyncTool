@@ -6,6 +6,10 @@ package com.sjc.async.callback;
  * {@code @msg} reserved
  */
 
+import com.sjc.async.wrapper.WorkerWrapper;
+
+import java.util.Map;
+
 /**
  * 最小执行单元需要实现的接口
  * @param <T> 传入参数类型
@@ -16,7 +20,7 @@ public interface IWorker<T , V> {
     /**
      * 任务操作 - 如 IO rpc
      */
-    V action (T object);
+    V action (T object , Map<String , WorkerWrapper> allWrappers);
 
     /**
      * 发生超时等异常的默认返回值

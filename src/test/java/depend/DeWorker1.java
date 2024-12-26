@@ -3,6 +3,9 @@ package depend;
 import com.sjc.async.callback.ICallback;
 import com.sjc.async.callback.IWorker;
 import com.sjc.async.worker.WorkResult;
+import com.sjc.async.wrapper.WorkerWrapper;
+
+import java.util.Map;
 
 /**
  * @author abstractMoonAstronaut
@@ -21,7 +24,7 @@ public class DeWorker1 implements IWorker<WorkResult<User> , User> , ICallback<W
     }
 
     @Override
-    public User action(WorkResult<User> result) {
+    public User action(WorkResult<User> result , Map<String , WorkerWrapper> allWrappers) {
         System.out.println("par1的参数来源自par0 " + result.getResult());
         try {
             Thread.sleep(1000);

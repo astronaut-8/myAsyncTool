@@ -4,6 +4,9 @@ import com.sjc.async.callback.ICallback;
 import com.sjc.async.callback.IWorker;
 import com.sjc.async.executor.timer.SystemClock;
 import com.sjc.async.worker.WorkResult;
+import com.sjc.async.wrapper.WorkerWrapper;
+
+import java.util.Map;
 
 /**
  * @author abstractMoonAstronaut
@@ -13,7 +16,7 @@ import com.sjc.async.worker.WorkResult;
 public class SeqWorker implements IWorker<String , String> , ICallback<String , String > {
 
     @Override
-    public String action(String object) {
+    public String action(String object , Map<String , WorkerWrapper> allWrappers) {
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
