@@ -340,3 +340,31 @@ public static class Builder<W , C> {
     }
 }
 ```
+
+# branch - V1.3
+
+首先在链式编程 比如为一个wrapper设置next的时候，为nextWrapper设置dependWrapper
+
+
+
+在之前的版本中如果一个wrapper要使用之前的wrapper的返回值作为自己的入参
+
+想法如下：
+
+​	由于之前的wrapper是封装好的，wrapper内部对于WorkerResult的引用在wrapper已经确定了，所以可以提前暴露result的引用 即使这时候result是一个初始值，没有具体值，但是引用已经存在了
+
+现在
+
+```java
+V action (T object , Map<String , WorkerWrapper> allWrappers);
+```
+
+对于 worker的具体操作action 传入一个记录所有wrapper的map，要使用返回值的时候，直接使用
+
+map的映射去找到这个wrapper并且获取到result
+
+这个map在并行任务启动的时候也就是在Async 的 beginWork逻辑中
+
+去维护一个初始的map 传入第一个要执行的wrapper 并由这个wrapper把map传递下去（修改之前的执行逻辑）
+
+**没有什么重要内容 对功能进一步完善**
