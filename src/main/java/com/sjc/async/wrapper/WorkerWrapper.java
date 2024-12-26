@@ -124,13 +124,15 @@ public class WorkerWrapper<T, V> {
     }
 
     private boolean checkNextWrapperResult() {
+
         // 如果自己是最后一个 或者后面有多个并行任务，则需要执行此任务
         if (nextWrappers == null || nextWrappers.size() != 1) {
+
             return getState() == INIT;
         }
+
         WorkerWrapper nextWrapper = nextWrappers.get(0);
         boolean state = nextWrapper.getState() == INIT;
-
 
         // 继续校验自己的next的状态
         return state && nextWrapper.checkNextWrapperResult();
@@ -342,14 +344,43 @@ public class WorkerWrapper<T, V> {
 
 
     private void addDepend(WorkerWrapper<? , ?> workerWrapper ,boolean must){
+        addDepend(new DependWrapper(workerWrapper , must));
+    }
+    private void addDepend(DependWrapper dependWrapper ){
         if (dependWrappers == null) {
             dependWrappers = new ArrayList<>();
         }
-        dependWrappers.add(new DependWrapper(workerWrapper , must));
+        for (DependWrapper wrapper : dependWrappers) {
+            if (wrapper.equals(dependWrapper)) {
+                return;
+            }
+        }
+        dependWrappers.add(dependWrapper);
     }
 
-
-
+    private void addNext (WorkerWrapper<? ,?> workerWrapper) {
+        if (nextWrappers == null) {
+            nextWrappers = new ArrayList<>();
+        }
+        nextWrappers.stream().forEach(wrapper -> {
+            if (wrapper.equals(workerWrapper)) {
+                return;
+            }
+        });
+        nextWrappers.add(workerWrapper);
+    }
+    private void addNextWrappers (List<WorkerWrapper<? ,?>> wrappers) {
+        if (wrappers == null) {
+            return;
+        }
+        wrappers.forEach(this::addNext);
+    }
+    private void addDependWrappers (List<DependWrapper> dependWrappers) {
+        if (dependWrappers == null) {
+            return;
+        }
+        dependWrappers.forEach(this::addDepend);
+    }
 
     private boolean compareAndSetState(int expect , int update) {
         return this.state.compareAndSet(expect , update);
@@ -423,8 +454,9 @@ public class WorkerWrapper<T, V> {
 
         private List<WorkerWrapper<? ,?>> nextWrappers; // 自己后面所有的wrapper
         private Set<WorkerWrapper<? ,?>> selfIsMustSet; // 强依赖于自己的wrapper
-
+        private List<DependWrapper> dependWrappers;
         private boolean needCheckNextWrapperResult = true;
+
 
         public Builder<W ,C> worker(IWorker<W ,C> worker){
             this.worker = worker;
@@ -440,6 +472,29 @@ public class WorkerWrapper<T, V> {
         }
         public Builder<W ,C> needCheckNextWrapperResult(boolean needCheckNextWrapperResult){
             this.needCheckNextWrapperResult = needCheckNextWrapperResult;
+            return this;
+        }
+        public Builder<W ,C> depend(WorkerWrapper<? ,?>... wrappers) {
+            if (wrappers == null) {
+                return this;
+            }
+            for (WorkerWrapper<?, ?> wrapper : wrappers) {
+                depend(wrapper);
+            }
+            return this;
+        }
+        public Builder<W ,C> depend(WorkerWrapper<? ,?> wrapper) {
+            return depend(wrapper ,true);
+        }
+        public Builder<W ,C> depend (WorkerWrapper<? ,?> wrapper , boolean isMust) {
+            if (wrapper == null) {
+                return this;
+            }
+            DependWrapper dependWrapper = new DependWrapper(wrapper, isMust);
+            if (dependWrappers == null) {
+                dependWrappers = new ArrayList<>();
+            }
+            dependWrappers.add(dependWrapper);
             return this;
         }
         public Builder<W ,C> next(WorkerWrapper<? ,?> wrapper , boolean selfIsMust) {
@@ -464,19 +519,28 @@ public class WorkerWrapper<T, V> {
                 return this;
             }
             for (WorkerWrapper<? ,?> wrapper : wrappers) {
-                next(wrapper , true);
+                next(wrapper);
             }
             return this;
         }
         public WorkerWrapper<W ,C> build() {
             WorkerWrapper<W ,C> wrapper = new WorkerWrapper<>(worker , callback , param);
             wrapper.setNeedCheckNextWrapperResult(needCheckNextWrapperResult);
-            wrapper.setNextWrappers(nextWrappers);
+            if (dependWrappers != null) {
+                for (DependWrapper workerWrapper : dependWrappers) {
+                    workerWrapper.getDependWrapper().addNext(wrapper);
+                    wrapper.addDepend(workerWrapper);
+                }
+            }
+
             if (nextWrappers != null && !nextWrappers.isEmpty()) {
                 for (WorkerWrapper<? ,?> workerWrapper : nextWrappers) {
-                    if (!selfIsMustSet.isEmpty()) {
-                        workerWrapper.addDepend(wrapper , selfIsMustSet.contains(workerWrapper));
+                    boolean must = false;
+                    if (selfIsMustSet != null && !selfIsMustSet.contains(workerWrapper)) {
+                        must = true;
                     }
+                    workerWrapper.addDepend(wrapper , must);
+                    wrapper.addNext(workerWrapper);
                 }
             }
             return wrapper;
