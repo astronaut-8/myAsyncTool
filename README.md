@@ -213,7 +213,7 @@ public interface IGroupCallback {
 
 
 
-branch - V1.1
+# branch - V1.1
 
 V1.1 当中没有什么大的升级
 
@@ -261,3 +261,82 @@ private boolean checkNextWrapperResult() {
 但是状态代码的耦合度比较大的 别的代码兼容度低
 
 所以选择在发生这一情况的时候去抛出一个Exception(SkippedException)
+
+# branch - V1.2
+
+改用Builder方式去构建WorkerWrapper
+
+将参数 依赖之类的封装到内部静态类中去
+
+暴露赋值的函数(set好之后就去 返回this对象)
+
+就可以使用链式编程的方式去构建
+
+```java
+public static class Builder<W , C> {
+    private W param;
+    private IWorker<W , C> worker;
+    private ICallback<W ,C> callback;
+
+    private List<WorkerWrapper<? ,?>> nextWrappers; // 自己后面所有的wrapper
+    private Set<WorkerWrapper<? ,?>> selfIsMustSet; // 强依赖于自己的wrapper
+
+    private boolean needCheckNextWrapperResult = true;
+
+    public Builder<W ,C> worker(IWorker<W ,C> worker){
+        this.worker = worker;
+        return this;
+    }
+    public Builder<W ,C> param(W w){
+        this.param = w;
+        return this;
+    }
+    public Builder<W ,C> callback(ICallback<W ,C> callback){
+        this.callback = callback;
+        return this;
+    }
+    public Builder<W ,C> needCheckNextWrapperResult(boolean needCheckNextWrapperResult){
+        this.needCheckNextWrapperResult = needCheckNextWrapperResult;
+        return this;
+    }
+    public Builder<W ,C> next(WorkerWrapper<? ,?> wrapper , boolean selfIsMust) {
+        if (nextWrappers == null) {
+            nextWrappers = new ArrayList<>();
+        }
+        nextWrappers.add(wrapper);
+
+        if (selfIsMust) {
+            if (selfIsMustSet == null) {
+                selfIsMustSet = new HashSet<>();
+            }
+            selfIsMustSet.add(wrapper);
+        }
+        return this;
+    }
+    public Builder<W ,C> next (WorkerWrapper<? ,?> wrapper) {
+        return next(wrapper , true);
+    }
+    public Builder<W ,C> next(WorkerWrapper<? ,?> ... wrappers) {
+        if (wrappers == null) {
+            return this;
+        }
+        for (WorkerWrapper<? ,?> wrapper : wrappers) {
+            next(wrapper , true);
+        }
+        return this;
+    }
+    public WorkerWrapper<W ,C> build() {
+        WorkerWrapper<W ,C> wrapper = new WorkerWrapper<>(worker , callback , param);
+        wrapper.setNeedCheckNextWrapperResult(needCheckNextWrapperResult);
+        wrapper.setNextWrappers(nextWrappers);
+        if (nextWrappers != null && !nextWrappers.isEmpty()) {
+            for (WorkerWrapper<? ,?> workerWrapper : nextWrappers) {
+                if (!selfIsMustSet.isEmpty()) {
+                    workerWrapper.addDepend(wrapper , selfIsMustSet.contains(workerWrapper));
+                }
+            }
+        }
+        return wrapper;
+    }
+}
+```
