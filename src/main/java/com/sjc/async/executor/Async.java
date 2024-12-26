@@ -24,11 +24,10 @@ public class Async {
             new ThreadPoolExecutor(Runtime.getRuntime().availableProcessors() * 2 , 1024
             ,15L , TimeUnit.SECONDS , new LinkedBlockingDeque<>( ) , (ThreadFactory) Thread::new);
 
-    public static boolean beginWork(long timeout , ThreadPoolExecutor pool , WorkerWrapper... workerWrapper) throws ExecutionException, InterruptedException {
-        if (workerWrapper == null || workerWrapper.length == 0) {
+    public static boolean beginWork(long timeout , ThreadPoolExecutor pool ,  List<WorkerWrapper> workerWrappers) throws ExecutionException, InterruptedException {
+        if (workerWrappers == null || workerWrappers.size() == 0) {
             return false;
         }
-        List<WorkerWrapper> workerWrappers = Arrays.stream(workerWrapper).collect(Collectors.toList());
 
         CompletableFuture[] futures = new CompletableFuture[workerWrappers.size()];
         for (int i = 0 ; i < workerWrappers.size() ; i++) {
@@ -46,6 +45,13 @@ public class Async {
             }
             return false;
         }
+    }
+    public static boolean beginWork(long timeout , ThreadPoolExecutor pool , WorkerWrapper... workerWrapper) throws ExecutionException, InterruptedException {
+        if (workerWrapper == null || workerWrapper.length == 0) {
+            return false;
+        }
+        List<WorkerWrapper> collect = Arrays.stream(workerWrapper).collect(Collectors.toList());
+        return beginWork(timeout , pool , collect);
     }
     public static boolean beginWork (long timeout , WorkerWrapper... workerWrapper) throws ExecutionException, InterruptedException {
         return beginWork(timeout , COMMON_POOL , workerWrapper);
