@@ -56,10 +56,13 @@ public class Async {
         return beginWork(timeout , COMMON_POOL , workerWrapper);
     }
 
+    public static void beginWorkAsync (long timeout , IGroupCallback groupCallback , WorkerWrapper... workerWrapper){
+        beginWorkAsync(timeout , COMMON_POOL , groupCallback , workerWrapper);
+    }
     /**
      *  异步执行，直到所有的都完成，或者失败后，发起回调
      */
-    public static void beginWorkAsync (long timeout , IGroupCallback groupCallback , WorkerWrapper... workerWrapper) {
+    public static void beginWorkAsync (long timeout , ExecutorService executorService , IGroupCallback groupCallback , WorkerWrapper... workerWrapper) {
         if (groupCallback == null) {
             groupCallback = new DefaultGroupCallback();
         }
@@ -67,7 +70,7 @@ public class Async {
         if (executorService != null) {
             executorService.execute(() -> {
                 try {
-                    boolean success = beginWork(timeout, COMMON_POOL, workerWrapper);
+                    boolean success = beginWork(timeout, executorService, workerWrapper);
                     if (success) {
                         finalGroupCallback.success(Arrays.asList(workerWrapper));
                     } else {
