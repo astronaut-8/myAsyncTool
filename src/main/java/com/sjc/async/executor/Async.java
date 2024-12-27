@@ -17,9 +17,8 @@ import java.util.stream.Collectors;
 // 类入口 可以根据自己情况调整core线程的数量
 @SuppressWarnings("ALL")
 public class Async {
-    private static final ThreadPoolExecutor COMMON_POOL =
-            new ThreadPoolExecutor(Runtime.getRuntime().availableProcessors() * 2 , 1024
-            ,15L , TimeUnit.SECONDS , new LinkedBlockingDeque<>( ) , (ThreadFactory) Thread::new);
+    private static final ThreadPoolExecutor COMMON_POOL = (ThreadPoolExecutor) Executors.newCachedThreadPool();
+
 
     private static ExecutorService executorService;
     public static boolean beginWork(long timeout , ExecutorService executorService ,  List<WorkerWrapper> workerWrappers) throws ExecutionException, InterruptedException {
