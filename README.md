@@ -368,3 +368,19 @@ map的映射去找到这个wrapper并且获取到result
 去维护一个初始的map 传入第一个要执行的wrapper 并由这个wrapper把map传递下去（修改之前的执行逻辑）
 
 **没有什么重要内容 对功能进一步完善**
+
+# branch - V1.4
+
+在Async的开始方法中
+
+从原来传递ThreadPoolExecutor 到 ExecutorService 从实现类到接口 通用型提高
+
+```java
+public static boolean beginWork(long timeout , ThreadPoolExecutor pool ,  List<WorkerWrapper> workerWrappers) throws ExecutionException, InterruptedException
+```
+
+```java
+public static boolean beginWork(long timeout , ExecutorService executorService ,  List<WorkerWrapper> workerWrappers) throws ExecutionException, InterruptedException
+```
+
+**没有什么重要的记录**
