@@ -17,19 +17,21 @@ import java.util.stream.Collectors;
 // 类入口 可以根据自己情况调整core线程的数量
 @SuppressWarnings("ALL")
 public class Async {
-    public static final ThreadPoolExecutor COMMON_POOL =
+    private static final ThreadPoolExecutor COMMON_POOL =
             new ThreadPoolExecutor(Runtime.getRuntime().availableProcessors() * 2 , 1024
             ,15L , TimeUnit.SECONDS , new LinkedBlockingDeque<>( ) , (ThreadFactory) Thread::new);
 
-    public static boolean beginWork(long timeout , ThreadPoolExecutor pool ,  List<WorkerWrapper> workerWrappers) throws ExecutionException, InterruptedException {
+    private static ExecutorService executorService;
+    public static boolean beginWork(long timeout , ExecutorService executorService ,  List<WorkerWrapper> workerWrappers) throws ExecutionException, InterruptedException {
         if (workerWrappers == null || workerWrappers.size() == 0) {
             return false;
         }
+        Async.executorService = executorService;
         Map<String ,WorkerWrapper> forParamUseWrappers = new ConcurrentHashMap<>(); // 存放所有wrapper的map，从value的wrapper获取到result
         CompletableFuture[] futures = new CompletableFuture[workerWrappers.size()];
         for (int i = 0 ; i < workerWrappers.size() ; i++) {
             WorkerWrapper wrapper = workerWrappers.get(i);
-            futures[i] = CompletableFuture.runAsync(() -> wrapper.work(pool , timeout , forParamUseWrappers) , pool);
+            futures[i] = CompletableFuture.runAsync(() -> wrapper.work(executorService , timeout , forParamUseWrappers) , executorService);
         }
         try {
             CompletableFuture.allOf(futures).get(timeout , TimeUnit.MILLISECONDS);
@@ -43,12 +45,12 @@ public class Async {
             return false;
         }
     }
-    public static boolean beginWork(long timeout , ThreadPoolExecutor pool , WorkerWrapper... workerWrapper) throws ExecutionException, InterruptedException {
+    public static boolean beginWork(long timeout , ExecutorService executorService , WorkerWrapper... workerWrapper) throws ExecutionException, InterruptedException {
         if (workerWrapper == null || workerWrapper.length == 0) {
             return false;
         }
         List<WorkerWrapper> collect = Arrays.stream(workerWrapper).collect(Collectors.toList());
-        return beginWork(timeout , pool , collect);
+        return beginWork(timeout , executorService , collect);
     }
     public static boolean beginWork (long timeout , WorkerWrapper... workerWrapper) throws ExecutionException, InterruptedException {
         return beginWork(timeout , COMMON_POOL , workerWrapper);
@@ -62,7 +64,21 @@ public class Async {
             groupCallback = new DefaultGroupCallback();
         }
         IGroupCallback finalGroupCallback = groupCallback;
-        COMMON_POOL.submit(() -> {
+        if (executorService != null) {
+            executorService.execute(() -> {
+                try {
+                    boolean success = beginWork(timeout, COMMON_POOL, workerWrapper);
+                    if (success) {
+                        finalGroupCallback.success(Arrays.asList(workerWrapper));
+                    } else {
+                        finalGroupCallback.failure(Arrays.asList(workerWrapper) , new TimeoutException());
+                    }
+                } catch (ExecutionException | InterruptedException e) {
+                    e.printStackTrace();
+                    finalGroupCallback.failure(Arrays.asList(workerWrapper) , e);
+                }
+            });
+        }else {
             try {
                 boolean success = beginWork(timeout, COMMON_POOL, workerWrapper);
                 if (success) {
@@ -74,7 +90,8 @@ public class Async {
                 e.printStackTrace();
                 finalGroupCallback.failure(Arrays.asList(workerWrapper) , e);
             }
-        });
+        }
+
     }
 
     // 所有的执行单元
@@ -90,7 +107,11 @@ public class Async {
     }
 
     public static void shutDown() {
-        COMMON_POOL.shutdown();
+        if (executorService != null) {
+            executorService.shutdown();
+        } else {
+            COMMON_POOL.shutdown();
+        }
     }
 
 

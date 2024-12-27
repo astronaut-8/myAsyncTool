@@ -5,6 +5,7 @@ import com.sjc.async.executor.timer.SystemClock;
 import com.sjc.async.wrapper.WorkerWrapper;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 
 /**
  * @author abstractMoonAstronaut
@@ -24,9 +25,9 @@ public class TestPar {
         //testMulti9();
         //testMultiReverse();
         //testMulti3Reserve();
-        //testMulti9Reverse();
+        testMulti9Reverse();
         //testMulti4Reserve();
-        testMulti5Reserve();
+        //testMulti5Reserve();
     }
 
     /**
@@ -716,7 +717,7 @@ public class TestPar {
                 .next(last , false)
                 .build();
 
-        Async.beginWork(6000 , wrapperW , wrapperW1);
+        Async.beginWork(6000 , Executors.newCachedThreadPool(), wrapperW , wrapperW1);
         Async.shutDown();
 
     }

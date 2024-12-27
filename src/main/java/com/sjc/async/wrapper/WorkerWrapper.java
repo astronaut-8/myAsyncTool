@@ -18,7 +18,7 @@ import com.sjc.async.worker.WorkResult;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -83,7 +83,7 @@ public class WorkerWrapper<T, V> {
 
     // 整体的工作流程
     // fromWrapper 代表这个work是由上游哪一个wrapper发起的
-    private void work(ThreadPoolExecutor poolExecutor, WorkerWrapper fromWrapper, long remainTime , Map<String ,WorkerWrapper> forParamUseWrappers) {
+    private void work(ExecutorService executorService, WorkerWrapper fromWrapper, long remainTime , Map<String ,WorkerWrapper> forParamUseWrappers) {
         this.forParamUseWrappers = forParamUseWrappers;
         forParamUseWrappers.put(id ,this);
         long now = SystemClock.now();
@@ -92,35 +92,35 @@ public class WorkerWrapper<T, V> {
         if (remainTime <= 0) {
             System.err.println("remainTime is empty stop work -- threadName --- " + Thread.currentThread().getName());
             fastFail(INIT, null);
-            beginNext(poolExecutor, now, remainTime);
+            beginNext(executorService, now, remainTime);
             return;
         }
         // 如果自己执行过了，不要反复执行(有多个依赖，别多个依赖唤醒？)
         if (getState() == FINISHED || getState() == ERROR) {
-            beginNext(poolExecutor, now, remainTime);
+            beginNext(executorService, now, remainTime);
             return;
         }
         if (needCheckNextWrapperResult) {
             // 如果自己唯一的一个nextWrapper已经出现结果或者开始执行新的任务，自己就不用继续了
             if (!checkNextWrapperResult()) {
                 fastFail(INIT , new SkippedException());
-                beginNext(poolExecutor, now, remainTime);
+                beginNext(executorService, now, remainTime);
                 return;
             }
         }
         // 如果没有任何依赖，说明自己就是第一批要执行的
         if (dependWrappers == null || dependWrappers.isEmpty()) {
             fire();
-            beginNext(poolExecutor, now, remainTime);
+            beginNext(executorService, now, remainTime);
             return;
         }
         // 前方只有一个依赖
         if (dependWrappers.size() == 1) {
             doDependsOneJob(fromWrapper);
-            beginNext(poolExecutor, now, remainTime);
+            beginNext(executorService, now, remainTime);
         } else{
             //多个依赖的情况，会被前方的依赖任务多次唤醒，需要判断是否全部执行完毕
-            doDependsJobs(poolExecutor, dependWrappers, fromWrapper, now, remainTime);
+            doDependsJobs(executorService, dependWrappers, fromWrapper, now, remainTime);
         }
 
     }
@@ -141,8 +141,8 @@ public class WorkerWrapper<T, V> {
     }
 
 
-    public void work(ThreadPoolExecutor poolExecutor , long remainTime , Map<String , WorkerWrapper> forParamUseWrappers) {
-        work(poolExecutor , null , remainTime , forParamUseWrappers);
+    public void work(ExecutorService executorService , long remainTime , Map<String , WorkerWrapper> forParamUseWrappers) {
+        work(executorService , null , remainTime , forParamUseWrappers);
     }
 
 
@@ -159,22 +159,22 @@ public class WorkerWrapper<T, V> {
     /**
      * 运行下一个任务
      */
-    private void beginNext(ThreadPoolExecutor poolExecutor, long now, long remainTime) {
+    private void beginNext(ExecutorService executorService, long now, long remainTime) {
         // 花费的时间
         long costTime = SystemClock.now() - now;
         if (nextWrappers == null) {
             return;
         }
         if (nextWrappers.size() == 1) {
-            nextWrappers.get(0).work(poolExecutor , WorkerWrapper.this , remainTime - costTime , forParamUseWrappers);
+            nextWrappers.get(0).work(executorService , WorkerWrapper.this , remainTime - costTime , forParamUseWrappers);
             return;
         }
         CompletableFuture[] futures = new CompletableFuture[nextWrappers.size()];
         for (int i = 0 ; i < nextWrappers.size() ; i++) {
             int finalI = i; // 是的i在lambda中可见
             futures[i] = CompletableFuture.runAsync(() ->
-                    nextWrappers.get(finalI).work(poolExecutor , WorkerWrapper.this,remainTime - costTime , forParamUseWrappers ) ,
-                    poolExecutor);
+                    nextWrappers.get(finalI).work(executorService , WorkerWrapper.this,remainTime - costTime , forParamUseWrappers ) ,
+                    executorService);
         }
         try {
             CompletableFuture.allOf(futures).get();
@@ -198,7 +198,7 @@ public class WorkerWrapper<T, V> {
         }
     }
 
-    private synchronized void doDependsJobs(ThreadPoolExecutor poolExecutor, List<DependWrapper> dependWrappers, WorkerWrapper fromWrapper, long now, long remainTime) {
+    private synchronized void doDependsJobs(ExecutorService executorService, List<DependWrapper> dependWrappers, WorkerWrapper fromWrapper, long now, long remainTime) {
         // 上游father 任务是否为must的
         boolean nowDependIsMust = false;
         // 必须要完成的上游wrapper的集合
@@ -219,7 +219,7 @@ public class WorkerWrapper<T, V> {
             } else {
                 fire();
             }
-            beginNext(poolExecutor , now , remainTime);
+            beginNext(executorService , now , remainTime);
             return;
         }
 
@@ -259,7 +259,7 @@ public class WorkerWrapper<T, V> {
         // 依赖链中只要有失败的，直接结束
         if (hashError) {
             fastFail(INIT , null);
-            beginNext(poolExecutor , now , remainTime);
+            beginNext(executorService , now , remainTime);
             return;
         }
 
@@ -267,7 +267,7 @@ public class WorkerWrapper<T, V> {
         // 如果依赖的wrapper 都执行结束了 就到自己了
         if (!existNotFinish) {
             fire();
-            beginNext(poolExecutor , now , remainTime);
+            beginNext(executorService , now , remainTime);
             return;
         }
     }
